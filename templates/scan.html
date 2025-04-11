@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Scanner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+  <!-- logo -->
+  <link rel="icon" href="/static/logo.jpeg" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo.jpeg" type="image/png">
+</head>
+
+<body class="bg-gradient-to-br from-purple-100 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-center text-purple-700 mb-6">📷 QR Code Scanner</h1>
+
+    <!-- QR Reader -->
+    <div id="qr-reader" class="mb-6 rounded-lg overflow-hidden"></div>
+
+    <!-- Result Display -->
+    <p id="result" class="text-center text-lg font-medium text-gray-700 mb-4">Scan a QR code to see the result here</p>
+
+    <!-- Upload Image to Scan -->
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mb-4">
+      <input type="file" accept="image/*" onchange="handleImageUpload(event)"
+        class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm cursor-pointer bg-gray-50 hover:bg-gray-100 transition" />
+
+      <button onclick="toggleFlashlight()"
+        class="bg-yellow-500 text-white px-4 py-2 rounded-md shadow hover:bg-yellow-600 transition">
+        🔦 Toggle Flashlight
+      </button>
+    </div>
+
+    <!-- Copy & Link Section -->
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-3 mb-4">
+      <button id="copyBtn" onclick="copyToClipboard()"
+        class="hidden bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition">
+        📋 Copy to Clipboard
+      </button>
+
+      <div id="autoLink" class="hidden">
+        <a id="openLink" href="#" target="_blank"
+          class="text-blue-600 hover:underline text-sm font-medium">🔗 Open Link</a>
+      </div>
+    </div>
+
+    <!-- Reset Button -->
+    <div class="text-center">
+      <button onclick="resetScan()"
+        class="bg-gray-300 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-400 transition mb-2">
+        🔄 Reset Scan
+      </button>
+    </div>
+
+    <div class="text-center mt-3">
+      <a href="/" class="text-sm text-purple-500 hover:underline">← Back to Home</a>
+    </div>
+  </div>
+
+  <canvas id="canvas" hidden></canvas>
+
+  <script>
+    let scannedData = '';
+    let track;
+
+    const html5QrCode = new Html5Qrcode("qr-reader");
+
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length) {
+        const cameraId = devices[0].id;
+        html5QrCode.start(
+          cameraId,
+          { fps: 10, qrbox: 250 },
+          onScanSuccess,
+          onScanError
+        );
+      }
+    }).catch(err => {
+      document.getElementById('result').innerText = "❌ Camera error: " + err;
+    });
+
+    function onScanSuccess(decodedText) {
+      if (decodedText !== scannedData) {
+        updateScanResult(decodedText);
+      }
+    }
+
+    function onScanError() {}
+
+    async function toggleFlashlight() {
+      if (!track) {
+        const videoTrack = html5QrCode.getRunningTrack();
+        if (videoTrack) track = videoTrack;
+      }
+
+      if (!track) return alert("Flashlight not available.");
+      const capabilities = track.getCapabilities();
+      if (capabilities.torch) {
+        const isTorchOn = track.getSettings().torch || false;
+        await track.applyConstraints({ advanced: [{ torch: !isTorchOn }] });
+      } else {
+        alert("Flashlight not supported on this device.");
+      }
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.getElementById("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) updateScanResult(code.data);
+        else alert("❌ No QR code found in image.");
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function updateScanResult(text) {
+      scannedData = text;
+      document.getElementById('result').innerText = "✅ Scanned: " + text;
+      document.getElementById('copyBtn').classList.remove('hidden');
+
+      if (text.startsWith("http://") || text.startsWith("https://")) {
+        const openLink = document.getElementById('openLink');
+        openLink.href = text;
+        openLink.innerText = "🔗 Open " + text;
+        document.getElementById('autoLink').classList.remove('hidden');
+      } else {
+        document.getElementById('autoLink').classList.add('hidden');
+      }
+    }
+
+    function resetScan() {
+      scannedData = '';
+      document.getElementById('result').innerText = "Scan a QR code to see the result here";
+      document.getElementById('copyBtn').classList.add('hidden');
+      document.getElementById('autoLink').classList.add('hidden');
+    }
+
+    function copyToClipboard() {
+      navigator.clipboard.writeText(scannedData).then(() => {
+        alert("📋 Copied to clipboard!");
+      });
+    }
+  </script>
+</body>
+
+</html>

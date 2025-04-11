@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Contact QR Builder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- logo -->
+  <link rel="icon" href="/static/logo.jpeg" type="image/png">
+  <link rel="apple-touch-icon" href="/static/logo.jpeg" type="image/png">
+  
+  <style>
+    .draggable { cursor: grab; }
+    .droppable { min-height: 150px; border: 2px dashed #ccc; }
+  </style>
+</head>
+<body class="bg-purple-50 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-3xl">
+    <h2 class="text-2xl font-bold text-purple-700 mb-4 text-center">🧲 Drag & Drop Contact Fields</h2>
+
+    <!-- Draggable field list -->
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4 text-center">
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Full Name">👤 Full Name</div>
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Phone">📞 Phone</div>
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Email">📧 Email</div>
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Address">🏠 Address</div>
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Website">🌐 Website</div>
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Company">🏢 Company</div>
+      <div draggable="true" class="draggable bg-purple-100 hover:bg-purple-200 p-2 rounded" data-field="Notes">📝 Notes</div>
+    </div>
+
+    <!-- Drop area -->
+    <form id="contact-form" class="droppable bg-gray-50 rounded p-4" onsubmit="generateContactQR(event)">
+      <p class="text-gray-500 mb-2 text-center">⬇️ Drag fields here and fill them in</p>
+      <div id="field-container" class="grid grid-cols-1 gap-3"></div>
+      <button type="submit" class="mt-4 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+        🎯 Generate QR Code
+      </button>
+    </form>
+
+    <div id="qr-output" class="mt-6 text-center hidden">
+      <h3 class="text-lg font-semibold mb-2 text-purple-600">QR Code:</h3>
+      <img id="qr-img" src="" class="mx-auto max-w-xs border p-2 rounded" />
+    </div>
+
+    <div class="mt-4 text-center">
+      <a href="/" class="text-sm text-purple-400 hover:underline">← Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('field-container');
+    const draggableItems = document.querySelectorAll('.draggable');
+
+    draggableItems.forEach(item => {
+      item.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('text/plain', item.getAttribute('data-field'));
+      });
+    });
+
+    document.getElementById('contact-form').addEventListener('dragover', e => e.preventDefault());
+    document.getElementById('contact-form').addEventListener('drop', e => {
+      e.preventDefault();
+      const fieldName = e.dataTransfer.getData('text/plain');
+      if (!container.querySelector(`[name="${fieldName}"]`)) {
+        const input = document.createElement('input');
+        input.name = fieldName;
+        input.placeholder = fieldName;
+        input.className = "border border-gray-300 rounded px-3 py-2 w-full";
+        container.appendChild(input);
+      }
+    });
+
+    function generateContactQR(event) {
+      event.preventDefault();
+      const formData = new FormData(event.target);
+      const vcard = `
+BEGIN:VCARD
+VERSION:3.0
+${formData.get('Full Name') ? 'FN:' + formData.get('Full Name') : ''}
+${formData.get('Phone') ? 'TEL:' + formData.get('Phone') : ''}
+${formData.get('Email') ? 'EMAIL:' + formData.get('Email') : ''}
+${formData.get('Address') ? 'ADR:' + formData.get('Address') : ''}
+${formData.get('Company') ? 'ORG:' + formData.get('Company') : ''}
+${formData.get('Website') ? 'URL:' + formData.get('Website') : ''}
+${formData.get('Notes') ? 'NOTE:' + formData.get('Notes') : ''}
+END:VCARD`.trim();
+
+      fetch('/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ type: 'text', data: vcard })
+      }).then(res => res.blob())
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          document.getElementById('qr-img').src = url;
+          document.getElementById('qr-output').classList.remove('hidden');
+        });
+    }
+  </script>
+</body>
+</html>

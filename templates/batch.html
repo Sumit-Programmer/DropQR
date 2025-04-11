@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Batch QR Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- logo -->
+    <link rel="icon" href="/static/logo.jpeg" type="image/png">
+    <link rel="apple-touch-icon" href="/static/logo.jpeg" type="image/png">
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-6 rounded shadow-lg max-w-md w-full">
+        <h2 class="text-2xl font-bold mb-4 text-center text-indigo-600">📦 Batch QR Code Generator</h2>
+
+        <form id="csvUploadForm" class="border-2 border-dashed border-gray-400 p-6 rounded-lg text-center bg-white">
+            <p class="mb-4 text-gray-600">Drag and drop your CSV file here or click to upload</p>
+            <input type="file" name="csv_file" id="csvFile" accept=".csv" class="hidden">
+            <button type="button" onclick="triggerUpload()"
+                class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">Upload CSV</button>
+        </form>
+
+        <!-- Download Button -->
+        <button id="downloadBtn" onclick="downloadQRCodes()" class="hidden mt-4 w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+            Download QR Codes
+        </button>
+
+        <p class="text-sm text-gray-500 mt-4 text-center">Each row in the CSV should contain one line of text or data
+            for QR generation.</p>
+        <div class="text-center mt-4">
+            <a href="/" class="text-indigo-500 hover:underline">← Back to Home</a>
+        </div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-2"></div>
+
+    <!-- Script -->
+    <script>
+        const form = document.getElementById('csvUploadForm');
+        const fileInput = document.getElementById('csvFile');
+
+        form.addEventListener('dragover', e => {
+            e.preventDefault();
+            form.classList.add('border-indigo-500');
+        });
+
+        form.addEventListener('dragleave', () => {
+            form.classList.remove('border-indigo-500');
+        });
+
+        form.addEventListener('drop', e => {
+            e.preventDefault();
+            form.classList.remove('border-indigo-500');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadCSV(files[0]);
+            }
+        });
+
+        function triggerUpload() {
+            fileInput.click();
+        }
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadCSV(fileInput.files[0]);
+            }
+        });
+
+        function uploadCSV(file) {
+            const formData = new FormData();
+            formData.append('csv_file', file);
+
+            fetch('/batch/upload', {
+                method: 'POST',
+                body: formData
+            }).then(res => {
+                if (res.ok) {
+                    showToast("CSV uploaded successfully!", "success");
+                    document.getElementById("downloadBtn").classList.remove("hidden");
+                } else {
+                    showToast("CSV upload failed!", "error");
+                }
+            }).catch(() => {
+                showToast("Something went wrong", "error");
+            });
+        }
+
+        function downloadQRCodes() {
+            fetch('/batch/download', {
+                method: 'POST'
+            }).then(response => {
+                if (!response.ok) throw new Error("Failed to download");
+
+                return response.blob();
+            }).then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "qr_codes.zip";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            }).catch(() => {
+                showToast("Failed to download QR codes", "error");
+            });
+        }
+
+        function showToast(message, type = "success") {
+            const colors = {
+                success: "bg-green-500",
+                error: "bg-red-500",
+                info: "bg-blue-500"
+            };
+            const toast = document.createElement("div");
+            toast.className = `${colors[type]} text-white px-4 py-2 rounded shadow-md transition-opacity duration-300`;
+            toast.textContent = message;
+
+            const container = document.getElementById("toast-container");
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add("opacity-0");
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>

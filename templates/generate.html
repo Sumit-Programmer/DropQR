@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Generate QR Code</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- logo -->
+    <link rel="icon" href="/static/logo.jpeg" type="image/png">
+    <link rel="apple-touch-icon" href="/static/logo.jpeg" type="image/png">
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-center text-indigo-600 mb-6">🎨 Custom QR Code Generator</h1>
+
+        <form action="/generate" method="POST" enctype="multipart/form-data" onsubmit="formatQRData()" target="_blank">
+
+            <!-- QR Type Selection -->
+            <label class="font-semibold">QR Code Type:</label>
+            <select id="qrType" name="type" onchange="updateFormFields()" class="w-full p-2 border rounded mb-4">
+                <option value="">-- Select Type --</option>
+                <option value="url">URL</option>
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+                <option value="sms">SMS</option>
+                <option value="wifi">WiFi</option>
+                <option value="vcard">vCard</option>
+                <option value="event">Calendar Event</option>
+                <option value="location">Location</option>
+                <option value="text">Custom Text</option>
+            </select>
+
+            <!-- Dynamic Fields -->
+            <div id="fields-url" class="qr-fields hidden"><input type="text" id="url" placeholder="https://example.com"
+                    class="w-full p-2 border rounded mb-4"></div>
+            <div id="fields-email" class="qr-fields hidden"><input type="email" id="email" placeholder="you@example.com"
+                    class="w-full p-2 border rounded mb-4"></div>
+            <div id="fields-phone" class="qr-fields hidden"><input type="tel" id="phone" placeholder="+123456789"
+                    class="w-full p-2 border rounded mb-4"></div>
+            <div id="fields-sms" class="qr-fields hidden">
+                <input type="tel" id="smsNumber" placeholder="Phone Number" class="w-full p-2 border rounded mb-2">
+                <input type="text" id="smsMessage" placeholder="Message" class="w-full p-2 border rounded mb-4">
+            </div>
+            <div id="fields-wifi" class="qr-fields hidden">
+                <input type="text" id="ssid" placeholder="WiFi SSID" class="w-full p-2 border rounded mb-2">
+                <input type="password" id="password" placeholder="Password" class="w-full p-2 border rounded mb-4">
+            </div>
+            <div id="fields-vcard" class="qr-fields hidden">
+                <input type="text" id="vName" placeholder="Full Name" class="w-full p-2 border rounded mb-2">
+                <input type="email" id="vEmail" placeholder="Email" class="w-full p-2 border rounded mb-2">
+                <input type="tel" id="vPhone" placeholder="Phone" class="w-full p-2 border rounded mb-4">
+            </div>
+            <div id="fields-event" class="qr-fields hidden">
+                <input type="text" id="eventTitle" placeholder="Event Title" class="w-full p-2 border rounded mb-2">
+                <input type="datetime-local" id="startDate" class="w-full p-2 border rounded mb-2">
+                <input type="datetime-local" id="endDate" class="w-full p-2 border rounded mb-4">
+            </div>
+            <div id="fields-location" class="qr-fields hidden">
+                <input type="text" id="lat" placeholder="Latitude" class="w-full p-2 border rounded mb-2">
+                <input type="text" id="lng" placeholder="Longitude" class="w-full p-2 border rounded mb-4">
+            </div>
+            <div id="fields-text" class="qr-fields hidden">
+                <textarea id="customText" placeholder="Enter your text..."
+                    class="w-full p-2 border rounded mb-4"></textarea>
+            </div>
+
+            <!-- Customization -->
+            <label>Foreground Color:</label>
+            <input type="color" name="fg_color" value="#000000" class="w-full mb-2">
+            <label>Background Color:</label>
+            <input type="color" name="bg_color" value="#ffffff" class="w-full mb-4">
+
+        
+            <!-- Hidden full formatted QR data -->
+            <input type="hidden" name="qrdata" id="qrdata-main">
+
+            <!-- Live Preview -->
+            <div class="text-center mb-6">
+                <h3 class="text-lg font-semibold mb-2">QR Code Preview</h3>
+                <div id="qr-preview" class="inline-block p-4 border rounded bg-white shadow"></div>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded w-full hover:bg-indigo-700">🎯
+                Generate QR</button>
+        </form>
+
+        <!-- Optional PDF Export -->
+        <form action="/generate-pdf" method="POST" onsubmit="formatQRData()" class="mt-4">
+            <input type="hidden" name="qrdata" id="qrdata-pdf">
+            <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded w-full hover:bg-red-700">📄 Export as
+                PDF</button>
+        </form>
+
+        <p class="mt-4 text-center">
+            Want to generate contact QR codes? <a href="/contact" class="text-purple-600 hover:underline">Try the Drag & Drop Builder</a>
+        </p>
+
+        <a href="/history" class="text-sm text-indigo-500 hover:underline mt-4 block text-center">📜 View QR History</a>
+       
+
+        <div class="mt-6 text-center text-sm">
+            <a href="/" class="text-indigo-400 hover:underline">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        function updateFormFields() {
+            const type = document.getElementById('qrType').value;
+            document.querySelectorAll('.qr-fields').forEach(div => {
+                div.classList.add('hidden');
+                div.querySelectorAll('input, textarea').forEach(input => input.disabled = true);
+            });
+            if (type) {
+                const section = document.getElementById(`fields-${type}`);
+                section.classList.remove('hidden');
+                section.querySelectorAll('input, textarea').forEach(input => input.disabled = false);
+            }
+            formatQRData();
+        }
+
+        function formatQRData() {
+            const type = document.getElementById('qrType').value;
+            let data = '';
+            switch (type) {
+                case 'url': data = document.getElementById('url').value; break;
+                case 'email': data = 'mailto:' + document.getElementById('email').value; break;
+                case 'phone': data = 'tel:' + document.getElementById('phone').value; break;
+                case 'sms':
+                    data = `SMSTO:${document.getElementById('smsNumber').value}:${document.getElementById('smsMessage').value}`;
+                    break;
+                case 'wifi':
+                    data = `WIFI:T:WPA;S:${document.getElementById('ssid').value};P:${document.getElementById('password').value};;`;
+                    break;
+                case 'vcard':
+                    data = `BEGIN:VCARD\nVERSION:3.0\nN:${document.getElementById('vName').value}\nEMAIL:${document.getElementById('vEmail').value}\nTEL:${document.getElementById('vPhone').value}\nEND:VCARD`;
+                    break;
+                case 'event':
+                    data = `BEGIN:VEVENT\nSUMMARY:${document.getElementById('eventTitle').value}\nDTSTART:${document.getElementById('startDate').value}\nDTEND:${document.getElementById('endDate').value}\nEND:VEVENT`;
+                    break;
+                case 'location':
+                    data = `geo:${document.getElementById('lat').value},${document.getElementById('lng').value}`;
+                    break;
+                case 'text':
+                    data = document.getElementById('customText').value;
+                    break;
+            }
+
+            document.getElementById('qrdata-main').value = data;
+            document.getElementById('qrdata-pdf').value = data;
+            updatePreview(data);
+        }
+
+        let qrInstance;
+
+        function updatePreview(data) {
+            const preview = document.getElementById("qr-preview");
+            preview.innerHTML = "";
+            if (!data) return;
+
+            qrInstance = new QRCode(preview, {
+                text: data,
+                width: 200,
+                height: 200,
+                colorDark: document.querySelector('input[name="fg_color"]').value,
+                colorLight: document.querySelector('input[name="bg_color"]').value,
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+
+        // Initial preview setup
+        document.querySelectorAll("input, textarea, select").forEach(el => {
+            el.addEventListener("input", formatQRData);
+            el.addEventListener("change", formatQRData);
+        });
+
+        // On page load
+        window.onload = formatQRData;
+    </script>
+</body>
+
+</html>
