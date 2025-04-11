@@ -72,7 +72,7 @@
             <label>Background Color:</label>
             <input type="color" name="bg_color" value="#ffffff" class="w-full mb-4">
 
-        
+
             <!-- Hidden full formatted QR data -->
             <input type="hidden" name="qrdata" id="qrdata-main">
 
@@ -95,11 +95,12 @@
         </form>
 
         <p class="mt-4 text-center">
-            Want to generate contact QR codes? <a href="/contact" class="text-purple-600 hover:underline">Try the Drag & Drop Builder</a>
+            Want to generate contact QR codes? <a href="/contact" class="text-purple-600 hover:underline">Try the Drag &
+                Drop Builder</a>
         </p>
 
         <a href="/history" class="text-sm text-indigo-500 hover:underline mt-4 block text-center">📜 View QR History</a>
-       
+
 
         <div class="mt-6 text-center text-sm">
             <a href="/" class="text-indigo-400 hover:underline">← Back to Home</a>
@@ -176,6 +177,46 @@
             el.addEventListener("input", formatQRData);
             el.addEventListener("change", formatQRData);
         });
+
+        function generateContactQR(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const vcard = `
+BEGIN:VCARD
+VERSION:3.0
+${formData.get('Full Name') ? 'FN:' + formData.get('Full Name') : ''}
+${formData.get('Phone') ? 'TEL:' + formData.get('Phone') : ''}
+${formData.get('Email') ? 'EMAIL:' + formData.get('Email') : ''}
+${formData.get('Address') ? 'ADR:' + formData.get('Address') : ''}
+${formData.get('Company') ? 'ORG:' + formData.get('Company') : ''}
+${formData.get('Website') ? 'URL:' + formData.get('Website') : ''}
+${formData.get('Notes') ? 'NOTE:' + formData.get('Notes') : ''}
+END:VCARD`.trim();
+
+            fetch('/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'text', data: vcard })
+            }).then(res => res.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+
+                    // Show QR preview
+                    document.getElementById('qr-img').src = url;
+                    document.getElementById('qr-output').classList.remove('hidden');
+
+                    // Create download button dynamically
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = url;
+                    downloadBtn.download = "contact-qr.png"; // filename
+                    downloadBtn.textContent = "⬇️ Download QR Code";
+                    downloadBtn.className = "mt-4 inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700";
+
+                    const output = document.getElementById('qr-output');
+                    output.appendChild(downloadBtn);
+                });
+        }
+
 
         // On page load
         window.onload = formatQRData;
