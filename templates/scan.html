@@ -15,6 +15,14 @@
 
 <body class="bg-gradient-to-br from-purple-100 to-indigo-100 min-h-screen flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl">
+    <div class="mb-4 text-left">
+      <label for="cameraSelect" class="block mb-1 font-medium text-gray-700">Select Camera:</label>
+      <select id="cameraSelect" class="w-full p-2 border rounded bg-white text-gray-700"></select>
+      <button onclick="startSelectedCamera()" class="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+        🎥 Start Scanner
+      </button>
+    </div>
+
     <h1 class="text-3xl font-bold text-center text-purple-700 mb-6">📷 QR Code Scanner</h1>
 
     <!-- QR Reader -->
@@ -42,8 +50,8 @@
       </button>
 
       <div id="autoLink" class="hidden">
-        <a id="openLink" href="#" target="_blank"
-          class="text-blue-600 hover:underline text-sm font-medium">🔗 Open Link</a>
+        <a id="openLink" href="#" target="_blank" class="text-blue-600 hover:underline text-sm font-medium">🔗 Open
+          Link</a>
       </div>
     </div>
 
@@ -67,20 +75,43 @@
     let track;
 
     const html5QrCode = new Html5Qrcode("qr-reader");
+    let currentCameraId = null;
 
     Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        const cameraId = devices[0].id;
-        html5QrCode.start(
-          cameraId,
+      const cameraSelect = document.getElementById("cameraSelect");
+      devices.forEach(device => {
+        const option = document.createElement("option");
+        option.value = device.id;
+        option.text = device.label || `Camera ${cameraSelect.length + 1}`;
+        cameraSelect.appendChild(option);
+      });
+
+      if (devices.length > 0) {
+        currentCameraId = devices[0].id; // Default camera
+        cameraSelect.value = currentCameraId;
+      }
+    }).catch(err => {
+      document.getElementById('result').innerText = "❌ Camera access error: " + err;
+    });
+
+    function startSelectedCamera() {
+      const selectedCameraId = document.getElementById("cameraSelect").value;
+      if (!selectedCameraId) return alert("Please select a camera!");
+
+      html5QrCode
+        .start(
+          selectedCameraId,
           { fps: 10, qrbox: 250 },
           onScanSuccess,
           onScanError
-        );
-      }
-    }).catch(err => {
-      document.getElementById('result').innerText = "❌ Camera error: " + err;
-    });
+        )
+        .then(() => {
+          currentCameraId = selectedCameraId;
+        })
+        .catch(err => {
+          document.getElementById('result').innerText = "❌ Start error: " + err;
+        });
+    }
 
     function onScanSuccess(decodedText) {
       if (decodedText !== scannedData) {
@@ -88,7 +119,7 @@
       }
     }
 
-    function onScanError() {}
+    function onScanError() { }
 
     async function toggleFlashlight() {
       if (!track) {
