@@ -34,24 +34,22 @@ def index():
 def generate_qr():
     session.permanent = True
     if request.method == 'POST':
-        # Support both JSON and form submission
         if request.is_json:
-            content = request.get_json()
-            data = content.get('data', '')
-            fg_color = content.get('fg_color', '#000000')
-            bg_color = content.get('bg_color', '#ffffff')
+            data = request.get_json()
+            qr_data = data.get('data', '')
+            fg_color = data.get('fg_color', '#000000')
+            bg_color = data.get('bg_color', '#ffffff')
         else:
-            data = request.form.get('qrdata', '')
+            qr_data = request.form.get('qrdata', '')
             fg_color = request.form.get('fg_color', '#000000')
             bg_color = request.form.get('bg_color', '#ffffff')
 
-        if not data:
+        if not qr_data:
             return "No data provided!", 400
 
         qr = qrcode.QRCode(box_size=10, border=4)
-        qr.add_data(data)
+        qr.add_data(qr_data)
         qr.make(fit=True)
-
         img = qr.make_image(fill_color=fg_color, back_color=bg_color)
 
         buffer = BytesIO()
@@ -60,10 +58,10 @@ def generate_qr():
 
         if 'history' not in session:
             session['history'] = []
-        session['history'].append(data)
+        session['history'].append(qr_data)
         session.modified = True
 
-        return send_file(buffer, mimetype='image/png')
+        return send_file(buffer, mimetype='image/png', as_attachment=True, download_name='DropQR.png')
 
     return render_template('generate.html')
 
